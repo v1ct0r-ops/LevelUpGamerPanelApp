@@ -19,6 +19,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.level_up_movil.ui.theme.componentes.*
 import com.google.android.gms.location.LocationServices
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
+
 
 @Composable
 fun PantallaRegistro(
@@ -31,7 +36,7 @@ fun PantallaRegistro(
     val context = LocalContext.current
     val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
 
-    // 🔹 Lanzador para pedir permiso de ubicación
+    //  Lanzador para pedir permiso de ubicación
     val launcherPermisoUbicacion = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -108,7 +113,7 @@ fun PantallaRegistro(
                     CampoTexto("Región", ui.region, vm::onRegion, modifier = Modifier.fillMaxWidth(0.95f))
                     CampoTexto("Comuna", ui.comuna, vm::onComuna, modifier = Modifier.fillMaxWidth(0.95f))
 
-                    // ✅ BOTÓN PARA DETECTAR UBICACIÓN
+                    //  BOTÓN PARA DETECTAR UBICACIÓN
                     Button(
                         onClick = {
                             if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
@@ -143,7 +148,8 @@ fun PantallaRegistro(
                         texto = "Crear cuenta",
                         onClick = {
                             vm.crearCuenta(
-                                onOk = { mostrarDialogoExito.value = true },
+                                onOk = {vibrarDispositivo(context)
+                                    mostrarDialogoExito.value = true },
                                 onError = { msg -> vm.ui.value = ui.copy(error = msg) }
                             )
                         },
@@ -187,3 +193,27 @@ fun obtenerUbicacion(context: android.content.Context, fusedLocationClient: com.
         }
     }
 }
+
+fun vibrarDispositivo(context: android.content.Context) {
+    try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Android 12 o superior
+            val vibratorManager = context.getSystemService(VibratorManager::class.java)
+            val vibrator = vibratorManager?.defaultVibrator
+            vibrator?.vibrate(
+                VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE)
+            )
+        } else {
+            // Versiones anteriores
+            val vibrator = context.getSystemService(Vibrator::class.java)
+            vibrator?.vibrate(
+                VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE)
+            )
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+        // No hace nada si el hardware o permiso no existe
+    }
+}
+
+
