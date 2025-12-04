@@ -24,6 +24,7 @@ import com.example.levelupgamerpanel_app.data.models.Producto
 import com.example.levelupgamerpanel_app.ui.navigation.Routes
 import kotlinx.coroutines.launch
 
+// Pantalla principal del dashboard con metricas y navegacion
 @Composable
 fun HomeScreen(nav: NavController, vm: AppViewModel = viewModel()) {
     val usuarios  by vm.usuarios.collectAsState()
@@ -31,28 +32,36 @@ fun HomeScreen(nav: NavController, vm: AppViewModel = viewModel()) {
     val pedidos   by vm.pedidos.collectAsState()
     val usuarioActual by vm.usuarioActual.collectAsState()
 
+    // Calcular metricas principales del negocio
     val totalUsuarios   = usuarios.size
     val totalProductos  = productos.size
     val inventarioTotal = productos.sumOf { it.stock }
     val pendientes      = pedidos.count { it.estado.equals("pendiente", true) }
 
+    // Contar cuantas veces se ha vendido cada producto
     val conteoPorProducto: Map<String, Int> = remember(pedidos) {
         pedidos.flatMap { it.items }
-            .groupBy(ItemPedido::idProducto)
+            .groupBy { it.productoId ?: "" }  // Cambiar de ItemPedido::idProducto a lambda con productoId
             .mapValues { (_, items) -> items.sumOf { it.cantidad } }
     }
+    // Obtener los 5 productos mas vendidos
     val topVendidos: List<Pair<Producto, Int>> = remember(productos, conteoPorProducto) {
         conteoPorProducto.entries
             .sortedByDescending { it.value }
-            .mapNotNull { (id, cant) -> productos.firstOrNull { it.id == id }?.let { it to cant } }
+            .mapNotNull { (id, cant) -> productos.firstOrNull { it.codigo == id }?.let { it to cant } }  // Cambiar .id a .codigo
             .take(5)
     }
+    // Producto con menor cantidad de stock
     val menosStock: Producto? = remember(productos) { productos.minByOrNull { it.stock } }
+    // Productos con stock bajo (1 a 4 unidades)
     val stockBajo: List<Producto> = remember(productos) { productos.filter { it.stock in 1..4 }.take(5) }
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val isOpen = drawerState.isOpen
+
+    // Verificar si el usuario actual es administrador
+    val isAdmin = usuarioActual?.tipoUsuario == "ADMIN"
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -60,26 +69,51 @@ fun HomeScreen(nav: NavController, vm: AppViewModel = viewModel()) {
             ModalDrawerSheet {
                 Spacer(Modifier.height(8.dp))
                 DrawerHeader()
+                // Navegacion a pantalla de productos
                 NavigationDrawerItem(
                     label = { Text("Productos", style = MaterialTheme.typography.titleLarge) },
                     selected = false,
                     onClick = { scope.launch { drawerState.close() }; nav.navigate(Routes.Productos) },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
+                // Navegacion a pantalla de pedidos
                 NavigationDrawerItem(
                     label = { Text("Pedidos", style = MaterialTheme.typography.titleLarge) },
                     selected = false,
                     onClick = { scope.launch { drawerState.close() }; nav.navigate(Routes.Pedidos) },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
+                // Solo admin y vendedores pueden ver boletas
+                if (isAdmin || usuarioActual?.tipoUsuario == "VENDEDOR") {
+                    NavigationDrawerItem(
+                        label = { Text("Boletas", style = MaterialTheme.typography.titleLarge) },
+                        selected = false,
+                        onClick = { scope.launch { drawerState.close() }; nav.navigate(Routes.Boletas) },
+                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                    )
+                }
+
+                // Solo administradores pueden ver usuarios
+                if (isAdmin) {
+                    NavigationDrawerItem(
+                        label = { Text("Usuarios", style = MaterialTheme.typography.titleLarge) },
+                        selected = false,
+                        onClick = { scope.launch { drawerState.close() }; nav.navigate(Routes.Usuarios) },
+                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                    )
+                }
+
+                // Navegacion a pantalla de Pokemon (API externa)
                 NavigationDrawerItem(
-                    label = { Text("Usuarios", style = MaterialTheme.typography.titleLarge) },
+                    label = { Text("Pokémon", style = MaterialTheme.typography.titleLarge) },
                     selected = false,
-                    onClick = { scope.launch { drawerState.close() }; nav.navigate(Routes.Usuarios) },
+                    onClick = { scope.launch { drawerState.close() }; nav.navigate(Routes.Games) },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
+
                 Spacer(Modifier.height(12.dp), )
                 HorizontalDivider()
+                // Cerrar sesion y volver al login
                 NavigationDrawerItem(
                     label = { Text("Salir", style = MaterialTheme.typography.titleLarge) },
                     selected = false,
@@ -108,6 +142,7 @@ fun HomeScreen(nav: NavController, vm: AppViewModel = viewModel()) {
                         }
                     },
                     actions = {
+                        // Boton para abrir/cerrar el menu lateral
                         IconButton(onClick = {
                             scope.launch { if (drawerState.isOpen) drawerState.close() else drawerState.open() }
                         }) {
@@ -125,7 +160,7 @@ fun HomeScreen(nav: NavController, vm: AppViewModel = viewModel()) {
                 ),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Bienvenida
+                // Mensaje de bienvenida con nombre del usuario
                 item {
                     val nombre = listOfNotNull(usuarioActual?.nombres, usuarioActual?.apellidos)
                         .filter { it.isNotBlank() }
@@ -133,21 +168,21 @@ fun HomeScreen(nav: NavController, vm: AppViewModel = viewModel()) {
                         .ifBlank { usuarioActual?.correo ?: "Usuario" }
                     Text("Bienvenid@, $nombre!", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
                 }
-                // Métricas fila 1
+                // Primera fila de metricas (Usuarios y Productos)
                 item {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         StatCard("Usuarios", totalUsuarios.toString(), Modifier.weight(1f, ))
                         StatCard("Productos", totalProductos.toString(), Modifier.weight(1f))
                     }
                 }
-                // Métricas fila 2
+                // Segunda fila de metricas (Inventario y Pedidos Pendientes)
                 item {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         StatCard("Inventario", inventarioTotal.toString(), Modifier.weight(1f))
                         StatCard("Pendientes", pendientes.toString(), Modifier.weight(1f))
                     }
                 }
-                // Top vendidos
+                // Seccion de productos mas vendidos
                 item {
                     SectionCard("Productos más vendidos") {
                         if (topVendidos.isEmpty()) {
@@ -165,7 +200,7 @@ fun HomeScreen(nav: NavController, vm: AppViewModel = viewModel()) {
                         }
                     }
                 }
-                // Menor stock
+                // Seccion del producto con menor stock
                 item {
                     SectionCard("Producto con menos stock") {
                         val ms = menosStock
@@ -179,7 +214,7 @@ fun HomeScreen(nav: NavController, vm: AppViewModel = viewModel()) {
                         }
                     }
                 }
-                // Stock bajo
+                // Seccion de productos con stock bajo (alerta de reposicion)
                 item {
                     SectionCard("Stock bajo (≤ 4)") {
                         if (stockBajo.isEmpty()) {
@@ -203,12 +238,14 @@ fun HomeScreen(nav: NavController, vm: AppViewModel = viewModel()) {
     }
 }
 
+// Componente del encabezado del menu lateral
 @Composable private fun DrawerHeader() {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
         Text("Navegación", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
     }
 }
 
+// Componente de tarjeta para mostrar metricas estadisticas
 @Composable private fun StatCard(title: String, value: String, modifier: Modifier = Modifier) {
     Card(modifier) {
         Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.Start) {
@@ -219,6 +256,7 @@ fun HomeScreen(nav: NavController, vm: AppViewModel = viewModel()) {
     }
 }
 
+// Componente de tarjeta para secciones con titulo y contenido personalizado
 @Composable private fun SectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
