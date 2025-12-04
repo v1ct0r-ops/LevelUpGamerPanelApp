@@ -26,7 +26,6 @@ import com.example.levelupgamerpanel_app.AppViewModel
 import com.example.levelupgamerpanel_app.data.models.Usuario
 import com.example.levelupgamerpanel_app.ui.navigation.Routes
 
-// Pantalla principal que muestra la lista de usuarios registrados
 @Composable
 fun UsuariosScreen(nav: NavController, vm: AppViewModel = viewModel()){
     val usuarios by vm.usuarios.collectAsState()
@@ -38,12 +37,10 @@ fun UsuariosScreen(nav: NavController, vm: AppViewModel = viewModel()){
     var showErrorDialog by remember { mutableStateOf(false) }
     var currentError by remember { mutableStateOf<String?>(null) }
     
-    // Cargar usuarios desde el backend al abrir la pantalla
     LaunchedEffect(Unit) {
         vm.cargarUsuarios()
     }
     
-    // Filtrar usuarios por RUN, nombre, apellidos, correo o tipo
     val list = usuarios.filter { u ->
         query.isEmpty() || 
         u.run.contains(query, true) ||
@@ -53,19 +50,15 @@ fun UsuariosScreen(nav: NavController, vm: AppViewModel = viewModel()){
         u.tipoUsuario.contains(query, true)
     }
     
-    // Verificar si el usuario actual es administrador
     val isAdmin = usuarioActual?.tipoUsuario == "ADMIN"
 
-    // Si no es admin, redirigir a la pantalla anterior
     LaunchedEffect(usuarioActual) {
-        // Solo forzamos la navegacion cuando ya tenemos el perfil cargado
         val usuario = usuarioActual
         if (usuario != null && usuario.tipoUsuario.uppercase() != "ADMIN") {
             nav.popBackStack()
         }
     }
 
-    // Mostrar dialogo de error cuando hay un mensaje de error
     LaunchedEffect(errorMessage) {
         if (errorMessage != null) {
             currentError = errorMessage
@@ -85,7 +78,6 @@ fun UsuariosScreen(nav: NavController, vm: AppViewModel = viewModel()){
                     }
                 },
                 actions = {
-                    // Solo administradores pueden agregar nuevos usuarios
                     if (isAdmin) {
                         IconButton(onClick = { nav.navigate(Routes.NuevoUsuario) }) {
                             Icon(Icons.Default.Add, contentDescription = "Nuevo usuario")
@@ -94,7 +86,7 @@ fun UsuariosScreen(nav: NavController, vm: AppViewModel = viewModel()){
                 }
             )
         }
-    ){ pv ->
+    ) { pv ->
         Column(Modifier.padding(pv).padding(12.dp)) {
             OutlinedTextField(
                 value = query, 
@@ -104,7 +96,6 @@ fun UsuariosScreen(nav: NavController, vm: AppViewModel = viewModel()){
             )
             Spacer(Modifier.height(8.dp))
             
-            // Mostrar indicador de carga mientras se obtienen los usuarios
             if (isLoading) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
@@ -119,14 +110,13 @@ fun UsuariosScreen(nav: NavController, vm: AppViewModel = viewModel()){
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                )
+                }
             } else {
                 LazyColumn {
-                    items(list){ u -> 
+                    items(list) { u ->
                         UsuarioRow(
                             u = u,
                             isAdmin = isAdmin,
-                            // Eliminar usuario del backend
                             onDelete = {
                                 vm.removeUsuario(
                                     correo = u.correo,
@@ -140,14 +130,13 @@ fun UsuariosScreen(nav: NavController, vm: AppViewModel = viewModel()){
                                     }
                                 )
                             }
-                        ) 
+                        )
                     }
                 }
             }
         }
     }
 
-    // Dialogo para mostrar errores
     if (showErrorDialog && currentError != null) {
         AlertDialog(
             onDismissRequest = { showErrorDialog = false },
@@ -162,9 +151,8 @@ fun UsuariosScreen(nav: NavController, vm: AppViewModel = viewModel()){
     }
 }
 
-// Tarjeta individual que muestra informacion de un usuario
 @Composable
-private fun UsuarioRow(u: Usuario, isAdmin: Boolean, onDelete: () -> Unit) {
+fun UsuarioRow(u: Usuario, isAdmin: Boolean, onDelete: () -> Unit) {
     var showDialog by remember { mutableStateOf(false) }
 
     Card(
@@ -173,7 +161,6 @@ private fun UsuarioRow(u: Usuario, isAdmin: Boolean, onDelete: () -> Unit) {
             .padding(vertical = 6.dp)
     ) {
         Column(Modifier.padding(12.dp)) {
-            // Cabecera con nombre completo y tipo de usuario
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -192,7 +179,6 @@ private fun UsuarioRow(u: Usuario, isAdmin: Boolean, onDelete: () -> Unit) {
                     )
                 }
                 
-                // Chip con tipo de usuario y color segun el rol
                 AssistChip(
                     onClick = {},
                     label = { Text(u.tipoUsuario) },
@@ -213,35 +199,11 @@ private fun UsuarioRow(u: Usuario, isAdmin: Boolean, onDelete: () -> Unit) {
             
             Spacer(Modifier.height(8.dp))
             
-            // Mostrar correo electronico del usuario
             Text(
                 text = "Correo: ${u.correo}",
                 style = MaterialTheme.typography.bodyMedium
             )
             
-            // Mostrar dirección completa si existe
-            //if (u.direccion.isNotEmpty() || u.comuna.isNotEmpty() || u.region.isNotEmpty()) {
-            //    val direccionCompleta = buildString {
-            //        if (u.direccion.isNotEmpty()) append(u.direccion)
-            //        if (u.comuna.isNotEmpty()) {
-            //            if (isNotEmpty()) append(", ")
-            //            append(u.comuna)
-            //        }
-            //        if (u.region.isNotEmpty()) {
-            //            if (isNotEmpty()) append(", ")
-            //            append(u.region)
-            //        }
-            //    }
-            //    if (direccionCompleta.isNotEmpty()) {
-            //        Text(
-            //            text = "Dirección: $direccionCompleta",
-            //            style = MaterialTheme.typography.bodySmall,
-            //            color = MaterialTheme.colorScheme.onSurfaceVariant
-            //        )
-            //    }
-            //}
-            
-            // Mostrar puntos LevelUp si el usuario tiene puntos
             if (u.puntosLevelUp > 0) {
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -252,30 +214,14 @@ private fun UsuarioRow(u: Usuario, isAdmin: Boolean, onDelete: () -> Unit) {
                 )
             }
             
-            // Mostrar estado del usuario (activo o inactivo)
             Text(
                 text = "Estado: ${if (u.activo) "Activo" else "Inactivo"}",
                 style = MaterialTheme.typography.bodySmall,
                 color = if (u.activo) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
             )
-            
-            // Acciones (solo para admin)
-            //if (isAdmin) {
-            //    Spacer(Modifier.height(8.dp))
-            //    Row(
-            //        Modifier.fillMaxWidth(),
-            //        horizontalArrangement = Arrangement.End,
-            //        verticalAlignment = Alignment.CenterVertically
-            //    ) {
-            //        TextButton(onClick = { showDialog = true }) {
-            //            Text("Eliminar", color = MaterialTheme.colorScheme.error)
-            //        }
-            //    }
-            //}
         }
     }
 
-    // Dialogo de confirmacion antes de eliminar usuario
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
@@ -302,7 +248,6 @@ private fun UsuarioRow(u: Usuario, isAdmin: Boolean, onDelete: () -> Unit) {
     }
 }
 
-// Pantalla para crear un nuevo usuario en el sistema
 @Composable
 fun NuevoUsuarioScreen(nav: NavController, vm: AppViewModel = viewModel()){
     val usuarioActual by vm.usuarioActual.collectAsState()
@@ -318,11 +263,9 @@ fun NuevoUsuarioScreen(nav: NavController, vm: AppViewModel = viewModel()){
     var comuna by remember { mutableStateOf("") }
     var direccion by remember { mutableStateOf("") }
     
-    // Estados para los menus desplegables
     var expandedRegion by remember { mutableStateOf(false) }
     var expandedComuna by remember { mutableStateOf(false) }
     
-    // Datos de regiones y comunas
     val regiones = remember {
         mapOf(
             "Región Metropolitana" to listOf("El Bosque", "San Bernardo", "Santiago", "Providencia", "Las Condes", "Maipú", "Puente Alto"),
@@ -330,7 +273,6 @@ fun NuevoUsuarioScreen(nav: NavController, vm: AppViewModel = viewModel()){
             "Biobío" to listOf("Concepción", "Talcahuano", "Chiguayante", "San Pedro de la Paz")
         )
     }
-    // Comunas disponibles segun la region seleccionada
     val comunasDisponibles = regiones[region] ?: emptyList()
     
     var err by remember { mutableStateOf<String?>(null) }
@@ -340,7 +282,6 @@ fun NuevoUsuarioScreen(nav: NavController, vm: AppViewModel = viewModel()){
     
     val isAdmin = usuarioActual?.tipoUsuario == "ADMIN"
 
-    // Si no es admin, redirigir a la pantalla anterior
     LaunchedEffect(usuarioActual) {
         val usuario = usuarioActual
         if (usuario != null && usuario.tipoUsuario.uppercase() != "ADMIN") {
@@ -348,7 +289,6 @@ fun NuevoUsuarioScreen(nav: NavController, vm: AppViewModel = viewModel()){
         }
     }
 
-    // Validar campos del formulario antes de guardar
     fun validar(): Boolean {
         when {
             run.trim().isEmpty() -> {
@@ -420,7 +360,7 @@ fun NuevoUsuarioScreen(nav: NavController, vm: AppViewModel = viewModel()){
                 }
             }
         )
-    }){ pv ->
+    }) { pv ->
         LazyColumn(
             Modifier
                 .fillMaxSize()
@@ -567,7 +507,7 @@ fun NuevoUsuarioScreen(nav: NavController, vm: AppViewModel = viewModel()){
                                 text = { Text(regionName) },
                                 onClick = {
                                     region = regionName
-                                    comuna = ""  // Resetear comuna cuando cambia región
+                                    comuna = ""
                                     expandedRegion = false
                                 }
                             )
@@ -642,22 +582,20 @@ fun NuevoUsuarioScreen(nav: NavController, vm: AppViewModel = viewModel()){
                     onClick = {
                         if (!validar()) return@Button
                         
-                        // Crear objeto Usuario con todos los datos ingresados
                         val nuevoUsuario = Usuario(
                             run = run.trim(),
                             nombres = nombres.trim(),
                             apellidos = apellidos.trim(),
                             correo = correo.trim(),
-                            password = password,  // Cambiar de "pass" a "password"
+                            password = password,
                             tipoUsuario = tipoUsuario,
-                            region = region.trim(),  // Separar region
-                            comuna = comuna.trim(),  // Separar comuna
-                            direccion = direccion.trim(),  // Solo la dirección específica
+                            region = region.trim(),
+                            comuna = comuna.trim(),
+                            direccion = direccion.trim(),
                             puntosLevelUp = 0,
                             activo = true
                         )
                         
-                        // Enviar usuario al backend para guardarlo
                         vm.addUsuario(
                             u = nuevoUsuario,
                             onSuccess = {
@@ -695,7 +633,6 @@ fun NuevoUsuarioScreen(nav: NavController, vm: AppViewModel = viewModel()){
         }
     }
     
-    // Dialogo de confirmacion de exito
     if (showSuccessDialog) {
         AlertDialog(
             onDismissRequest = { },
@@ -712,7 +649,6 @@ fun NuevoUsuarioScreen(nav: NavController, vm: AppViewModel = viewModel()){
         )
     }
     
-    // Dialogo para mostrar errores
     if (showErrorDialog) {
         AlertDialog(
             onDismissRequest = { showErrorDialog = false },

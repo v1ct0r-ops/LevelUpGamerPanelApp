@@ -21,7 +21,6 @@ import com.example.levelupgamerpanel_app.ui.screens.productos.EditarProductoScre
 import com.example.levelupgamerpanel_app.ui.screens.productos.NuevoProductoScreen
 import com.example.levelupgamerpanel_app.ui.screens.productos.ProductosScreen
 import com.example.levelupgamerpanel_app.ui.screens.pokemon.PokemonScreen
-import com.example.levelupgamerpanel_app.ui.screens.usuarios.NuevoUsuarioScreen
 import com.example.levelupgamerpanel_app.ui.screens.usuarios.UsuariosScreen
 
 // Rutas de navegacion de la app (como URLs internas)
@@ -106,7 +105,5 @@ fun AppNav(nav: NavHostController, appViewModel: com.example.levelupgamerpanel_a
         // Lista de usuarios del sistema
         composable(Routes.Usuarios){ UsuariosScreen(nav) }
 
-        // Formulario para crear usuario nuevo
-        composable(Routes.NuevoUsuario){ NuevoUsuarioScreen(nav) }
     }
 }
