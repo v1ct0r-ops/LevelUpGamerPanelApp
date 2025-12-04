@@ -1,44 +1,39 @@
 package com.example.levelupgamerpanel_app
 
-// Importo las herramientas básicas de Android para crear la actividad principal
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-
-// Traigo los componentes de Material 3 para que se vea bonito
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-
-// Importo el navegador para poder ir entre pantallas
 import androidx.navigation.compose.rememberNavController
-
-// Traigo mi navegación personalizada y el tema de la app
 import com.example.levelupgamerpanel_app.ui.navigation.AppNav
 import com.example.levelupgamerpanel_app.ui.theme.LevelUpTheme
 
-// Esta es la clase principal de mi app, como la puerta de entrada
+// Actividad principal de la aplicacion
+// Aqui arranca todo cuando abres la app
 class MainActivity : ComponentActivity() {
     
-    // Creo un ViewModel que va a manejar todos los datos de la app
+    // El ViewModel que maneja los datos y la logica de negocio
+    // viewModels() crea automaticamente una instancia porque AppViewModel hereda de AndroidViewModel
     private val vm: AppViewModel by viewModels()
 
-    // Este método se ejecuta cuando la app se abre por primera vez
+    // Se ejecuta cuando se crea la actividad
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Aquí defino cómo se va a ver toda mi app
+        // Configuro la interfaz de usuario
         setContent {
-            // Aplico mi tema personalizado (colores, tipografías, etc.)
+            // Aplico el tema de colores y estilos
             LevelUpTheme {
-                // Creo una superficie base con el color de fondo del tema
+                // Surface es como el contenedor principal
                 Surface(color = MaterialTheme.colorScheme.background) {
                     
-                    // Creo un controlador de navegación para moverme entre pantallas
+                    // Controlador para navegar entre pantallas
                     val nav = rememberNavController()
                     
-                    // Cargo mi sistema de navegación con todas las pantallas
-                    AppNav(nav)
+                    // Inicio el sistema de navegacion con el controlador y el viewmodel
+                    AppNav(nav, vm)
                 }
             }
         }
