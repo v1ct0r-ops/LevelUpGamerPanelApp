@@ -174,8 +174,8 @@ git clone https://github.com/v1ct0r-ops/LevelUpGamerPanelApp.git
 
 ### Credenciales de Acceso
 Para acceder a la aplicación con permisos de administrador, usa:
-- **Usuario**: `admin`
-- **Contraseña**: `123456`
+- **Usuario**: `richard@duoc.cl`
+- **Contraseña**: `admin123`
 
 **Nota**: Las credenciales son validadas contra el backend Spring Boot. Asegúrate de que el backend esté ejecutándose en la URL configurada en `ApiConfig.kt`.
 
@@ -211,6 +211,79 @@ La aplicación requiere los siguientes permisos:
 - `VIBRATE` - Vibración del dispositivo para feedback háptico
 - `INTERNET` - Conectividad para comunicación con backend y APIs externas
 - `ACCESS_NETWORK_STATE` - Verificación del estado de la red
+
+## APK Firmado
+
+### Descarga y Configuración
+- **APK Firmado**: Disponible en `app/release/` o en Releases de GitHub
+- **Keystore**: `levelup-release.jks` (no incluido en el repositorio por seguridad)
+- **Archivo de Configuración**: Ver `app/build.gradle.kts` para configuración de firma
+
+### Especificaciones Técnicas
+La aplicación está firmada digitalmente con las siguientes características:
+- **Key Alias**: `levelup-key`
+- **Algoritmo**: RSA 2048 bits
+- **Validity**: 10,000 días (aprox. 27 años)
+- **Tipo de Keystore**: JKS (Java KeyStore)
+
+### Configuración de Firma en Gradle
+```kotlin
+android {
+    signingConfigs {
+        create("release") {
+            storeFile = file("levelup-release.jks")
+            storePassword = "your_store_password"
+            keyAlias = "levelup-key"
+            keyPassword = "your_key_password"
+        }
+    }
+    
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+    }
+}
+```
+
+### Instalación del APK
+1. **Habilitar instalación desde fuentes desconocidas**:
+   - Configuración → Seguridad → Fuentes desconocidas (activar)
+   
+2. **Descargar el APK**:
+   - Desde GitHub Releases o carpeta `app/release/`
+   
+3. **Instalar en dispositivo**:
+   - Transferir APK al dispositivo Android
+   - Abrir el archivo y confirmar instalación
+   - Requisitos: Android 7.0 (API 24) o superior
+
+### Verificación de Firma
+Para verificar la firma del APK:
+```bash
+# Ver información de la firma
+jarsigner -verify -verbose -certs app-release.apk
+
+# Ver detalles del keystore
+keytool -list -v -keystore levelup-release.jks -alias levelup-key
+```
+
+### Generación del APK Firmado
+Si necesitas generar un nuevo APK firmado:
+1. En Android Studio: `Build` → `Generate Signed Bundle / APK`
+2. Seleccionar `APK`
+3. Seleccionar el keystore (`levelup-release.jks`)
+4. Ingresar contraseñas del keystore y key alias
+5. Seleccionar `release` build variant
+6. Marcar `V1 (Jar Signature)` y `V2 (Full APK Signature)`
+7. Click en `Finish`
+
+El APK firmado se generará en: `app/release/app-release.apk`
 
 ## Testing
 
@@ -343,6 +416,6 @@ Proyecto desarrollado con fines académicos para la asignatura DSY1105.
 
 **Período de Desarrollo**: 
 - **Fase 1**: 23 Octubre - 5 Noviembre 2025 (Desarrollo inicial)
-- **Fase 2**: 4 Diciembre 2025 (Integración con backend y APIs externas)
+- **Fase 2**: 5 Octubre - 4 Diciembre 2025 (Integración con backend y APIs externas)
 
 **Última actualización**: 4 Diciembre 2025
