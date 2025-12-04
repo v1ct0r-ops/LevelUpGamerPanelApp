@@ -1,70 +1,99 @@
 package com.example.levelupgamerpanel_app.ui.screens.login
 
-// Importo herramientas para manejar el estado de la pantalla
+import android.app.Application
 import androidx.compose.runtime.mutableStateOf
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-
-// Importo corrutinas para hacer tareas en segundo plano
+import com.example.levelupgamerpanel_app.data.repository.ApiRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-// Este ViewModel maneja toda la lógica del login (como el cerebro de la pantalla)
-class LoginViewModel : ViewModel(){
-    
-    // Aquí guardo lo que el usuario escribe en el campo de usuario
+// ViewModel que maneja el login conectando con el backend real
+class LoginViewModel(app: Application) : AndroidViewModel(app) {
+
+    // Repositorio para hacer las peticiones HTTP al backend
+    private val repository = ApiRepository(app)
+
+    // Estados del formulario de login
     val usuario = mutableStateOf("")
-    
-    // Aquí guardo lo que escribe en el campo de contraseña
     val contraseña = mutableStateOf("")
-    
-    // Si hay algún error (como credenciales incorrectas), lo guardo aquí
     val error = mutableStateOf<String?>(null)
-    
-    // Para saber si estoy verificando las credenciales (para mostrar loading)
     val isLoading = mutableStateOf(false)
-    
-    // Para saber si el usuario ya intentó hacer login (para mostrar errores)
     val intentoLogin = mutableStateOf(false)
+    val loginExitoso = mutableStateOf(false)
 
-
-
-    // Esta función se ejecuta cada vez que el usuario escribe en el campo de usuario
+    // Actualizar el campo de usuario (correo)
     fun onUsuarioChange(nuevoUsuario: String) {
-        usuario.value = nuevoUsuario    // Actualizo lo que escribió
-        error.value = null              // Limpio cualquier error anterior para que no se vea confuso
+        usuario.value = nuevoUsuario
+        error.value = null
     }
 
-    // Esta función se ejecuta cada vez que escribe en el campo de contraseña
+    // Actualizar el campo de contrasena
     fun onContraseñaChange(nuevaContraseña: String) {
-        contraseña.value = nuevaContraseña  // Actualizo la contraseña
-        error.value = null                  // También limpio errores anteriores
+        contraseña.value = nuevaContraseña
+        error.value = null
     }
 
-    // Esta función verifica si las credenciales son correctas
+    // Validar credenciales usando la API del backend
     fun validarLogin(): Boolean {
-        intentoLogin.value = true   // Marco que ya intentó hacer login
-        isLoading.value = true      // Activo el indicador de carga
-        
-        // Uso una corrutina para simular que estoy consultando un servidor
+        intentoLogin.value = true
+        isLoading.value = true
+        error.value = null
+
+        // Validar que los campos no esten vacios
+        if (usuario.value.isBlank()) {
+            error.value = "El correo es obligatorio"
+            isLoading.value = false
+            return false
+        }
+
+        if (contraseña.value.isBlank()) {
+            error.value = "La contraseña es obligatoria"
+            isLoading.value = false
+            return false
+        }
+
+        // Hacer peticion HTTP al backend para autenticar
         viewModelScope.launch {
-            delay(1000) // Simulo que tarda 1 segundo en verificar (como si fuera una API)
-            
-            // Verifico las credenciales
-            if (usuario.value == "admin" && contraseña.value == "1234"){
-                isLoading.value = false  // Quito el loading porque ya terminé
-            } else {
-                // Si están mal, muestro error y quito el loading
-                error.value = "Usuario o contraseña incorrectas reintentelo."
+            try {
+                android.util.Log.d("LoginViewModel", "Intentando login con API: ${usuario.value}")
+
+                val result = repository.login(usuario.value, contraseña.value)
+
                 isLoading.value = false
+
+                if (result.isSuccess) {
+                    val usuario = repository.obtenerUsuarioActual()
+
+                    // Bloquear acceso si el tipo de usuario es CLIENTE
+                    if (usuario?.tipoUsuario == "CLIENTE") {
+                        android.util.Log.d("LoginViewModel", "Login bloqueado: usuario tipo CLIENTE")
+                        error.value = "Acceso denegado. Esta aplicación es solo para administradores y vendedores."
+                        loginExitoso.value = false
+                        repository.logout()
+                    } else {
+                        // Login exitoso para ADMIN o VENDEDOR
+                        android.util.Log.d("LoginViewModel", "Login exitoso! Tipo: ${usuario?.tipoUsuario}")
+                        loginExitoso.value = true
+                        error.value = null
+                    }
+                } else {
+                    // Manejar error de autenticacion
+                    val errorMsg = result.exceptionOrNull()?.message ?: "Error al iniciar sesión"
+                    android.util.Log.e("LoginViewModel", "Login fallido: $errorMsg")
+                    error.value = errorMsg
+                    loginExitoso.value = false
+                }
+            } catch (e: Exception) {
+                // Manejar errores de conexion o excepciones inesperadas
+                android.util.Log.e("LoginViewModel", "Exception: ${e.message}", e)
+                isLoading.value = false
+                error.value = "Error de conexión: ${e.message}"
+                loginExitoso.value = false
             }
         }
 
-        // Por ahora retorno el resultado inmediatamente (en una app real sería asíncrono)
-        return if (usuario.value == "admin" && contraseña.value == "1234"){
-            true   // Login exitoso
-        } else {
-            false  // Login falló
-        }
+        // Retornar false porque la validacion es asincrona (resultado llega despues)
+        return false
     }
 }
