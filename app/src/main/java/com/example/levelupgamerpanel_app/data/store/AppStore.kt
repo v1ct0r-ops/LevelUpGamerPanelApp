@@ -1,130 +1,75 @@
 package com.example.levelupgamerpanel_app.data.store
 
-// Importo herramientas de Android para guardar datos en el dispositivo
 import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-
-// Importo mis modelos de datos (como las "estructuras" de mi información)
-import com.example.levelupgamerpanel_app.data.models.ItemPedido
-import com.example.levelupgamerpanel_app.data.models.Pedido
-import com.example.levelupgamerpanel_app.data.models.Producto
-import com.example.levelupgamerpanel_app.data.models.Usuario
-
-// Importo herramientas para trabajar con datos que cambian en tiempo real
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-// Importo herramientas para convertir objetos a JSON y viceversa
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.json.Json
+// Crear DataStore para guardar datos localmente en el dispositivo
+val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "app_preferences")
 
-// Creo mi "base de datos" local usando DataStore (es como un archivo que persiste)
-private val Context.dataStore by preferencesDataStore("levelup_admin")
-
-// Esta clase es como mi "base de datos" local de la aplicación
+// Almacenamiento local para guardar datos del usuario logueado
 class AppStore(private val context: Context) {
-    
-    // Defino las "llaves" para guardar diferentes tipos de datos (como nombres de archivos)
-    private val K_USUARIOS = stringPreferencesKey("usuarios")    // Para la lista de usuarios
-    private val K_PRODUCTOS = stringPreferencesKey("productos")  // Para el catálogo de productos
-    private val K_PEDIDOS = stringPreferencesKey("pedidos")      // Para el historial de pedidos
-    private val K_SESION = stringPreferencesKey("sesion")        // Para saber quién está logueado
 
-    private val json = Json { ignoreUnknownKeys = true }
+    companion object {
+        // Las llaves para identificar cada dato guardado
+        private val USER_EMAIL_KEY = stringPreferencesKey("user_email")
+        private val AUTH_TOKEN_KEY = stringPreferencesKey("auth_token")
+    }
 
-    val usuariosFlow: Flow<List<Usuario>> = context.dataStore.data.map { pref ->
-        pref[K_USUARIOS]?.let { json.decodeFromString(it) } ?: sampleUsuarios()
-    }
-    val productosFlow: Flow<List<Producto>> = context.dataStore.data.map { pref ->
-        pref[K_PRODUCTOS]?.let { json.decodeFromString(it) } ?: sampleProductos()
-    }
-    val pedidosFlow: Flow<List<Pedido>> = context.dataStore.data.map { pref ->
-        pref[K_PEDIDOS]?.let { json.decodeFromString(it) } ?: samplePedidos()
-    }
-    val sesionFlow: Flow<String?> = context.dataStore.data.map { it[K_SESION] }
+    // Observar el email del usuario que esta logueado
+    val userEmailFlow: Flow<String?> = context.dataStore.data
+        .map { preferences ->
+            preferences[USER_EMAIL_KEY]
+        }
 
-    suspend fun saveUsuarios(list: List<Usuario>) {
-        context.dataStore.edit { it[K_USUARIOS] = json.encodeToString(list) }
-    }
-    suspend fun saveProductos(list: List<Producto>) {
-        context.dataStore.edit { it[K_PRODUCTOS] = json.encodeToString(list) }
-    }
-    suspend fun savePedidos(list: List<Pedido>) {
-        context.dataStore.edit { it[K_PEDIDOS] = json.encodeToString(list) }
-    }
-    suspend fun saveSesion(correo: String?) {
-        context.dataStore.edit { pref ->
-            if (correo == null) pref.remove(K_SESION) else pref[K_SESION] = correo
+    // Observar el token de autenticacion guardado
+    val authTokenFlow: Flow<String?> = context.dataStore.data
+        .map { preferences ->
+            preferences[AUTH_TOKEN_KEY]
+        }
+
+    // Guardar el email del usuario en el dispositivo
+    suspend fun saveUserEmail(email: String) {
+        context.dataStore.edit { preferences ->
+            preferences[USER_EMAIL_KEY] = email
         }
     }
 
-    private fun sampleUsuarios() = listOf(
-        Usuario("admin@duoc.cl","1234","admin","Admin","LevelUp",250),
-        Usuario("vendedor@duoc.cl","1234","vendedor","Vendedor","Demo",80)
-    )
-    private fun sampleProductos() = listOf(
-        Producto("P1","Control Pro",49990,10,"Accesorios",null),
-        Producto("P2","Headset 7.1",79990,4,"Audio",null),
-        Producto("P3","Control Xbox Series X",59990,8,"Accesorios",null),
-        Producto("P4","HyperX Cloud II",79990,6,"Accesorios",null),
-        Producto("P5","Catan",29990,12,"Juegos de Mesa",null),
-        Producto("P6","Carcassonne",24990,9,"Juegos de Mesa",null),
-        Producto("P7","PlayStation 5",549990,2,"Consolas",null),
-        Producto("P8","PC ASUS ROG Strix",1299990,1,"Computadores Gamers",null),
-        Producto("P9","Secretlab Titan",349990,3,"Sillas Gamers",null),
-        Producto("P10","Logitech G502 HERO",49990,15,"Mouse",null),
-        Producto("P11","Razer Goliathus Extended Chroma",29990,20,"Mousepad",null),
-        Producto("P12","Polera 'Level-Up'",14990,25,"Poleras Personalizadas",null)
-    )
-    private fun samplePedidos() = listOf(
-        // Tu existente
-        Pedido(
-            "PED-1", System.currentTimeMillis(), "pendiente",
-            129980,
-            "vendedor@duoc.cl",
-            listOf(
-                ItemPedido("P1", "Control Pro", 2, 49990)
-            )
-        ),
-        Pedido(
-            "PED-2",
-            System.currentTimeMillis() - 86400000L, // ayer
-            "despachado",
-            159970,
-            "vendedor@duoc.cl",
-            listOf(
-                ItemPedido("P3","Control Xbox Series X",1,59990),
-                ItemPedido("P10","Logitech G502 HERO",2,49990)
-            )
-        ),
+    // Guardar el token de autenticacion en el dispositivo
+    suspend fun saveAuthToken(token: String) {
+        context.dataStore.edit { preferences ->
+            preferences[AUTH_TOKEN_KEY] = token
+        }
+    }
 
-        Pedido(
-            "PED-3",
-            System.currentTimeMillis() - 2 * 86400000L,
-            "pendiente",
-            84970,
-            "vendedor@duoc.cl",
-            listOf(
-                ItemPedido("P5","Catan",1,29990),
-                ItemPedido("P6","Carcassonne",1,24990),
-                ItemPedido("P11","Razer Goliathus Extended Chroma",1,29990)
-            )
-        ),
+    // Borrar todos los datos guardados cuando el usuario cierra sesion
+    suspend fun clearUserData() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(USER_EMAIL_KEY)
+            preferences.remove(AUTH_TOKEN_KEY)
+        }
+    }
 
-        Pedido(
-            "PED-4",
-            System.currentTimeMillis() - 3 * 86400000L, // hace 3 días
-            "cancelado",
-            629_980, // 1x P7 (549.990) + 1x P4 (79.990)
-            "vendedor@duoc.cl",
-            listOf(
-                ItemPedido("P7","PlayStation 5",1,549990),
-                ItemPedido("P4","HyperX Cloud II",1,79990)
-            )
-        )
-    )
+    // Obtener el email del usuario guardado
+    suspend fun getUserEmail(): String? {
+        var email: String? = null
+        context.dataStore.edit { preferences ->
+            email = preferences[USER_EMAIL_KEY]
+        }
+        return email
+    }
 
+    // Obtener el token de autenticacion guardado
+    suspend fun getAuthToken(): String? {
+        var token: String? = null
+        context.dataStore.edit { preferences ->
+            token = preferences[AUTH_TOKEN_KEY]
+        }
+        return token
+    }
 }
