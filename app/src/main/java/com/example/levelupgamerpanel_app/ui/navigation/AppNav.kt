@@ -105,5 +105,10 @@ fun AppNav(nav: NavHostController, appViewModel: com.example.levelupgamerpanel_a
         // Lista de usuarios del sistema
         composable(Routes.Usuarios){ UsuariosScreen(nav) }
 
+        // Formulario para crear nuevo usuario
+        composable(Routes.NuevoUsuario){ 
+            com.example.levelupgamerpanel_app.ui.screens.usuarios.NuevoUsuarioScreen(nav) 
+        }
+
     }
 }

@@ -1,18 +1,23 @@
 package com.example.levelupgamerpanel_app
 
 import android.app.Application
+import android.content.Context
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import com.example.levelupgamerpanel_app.data.models.*
 import com.example.levelupgamerpanel_app.data.repository.ApiRepository
 import io.mockk.*
 import io.mockk.coEvery
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.*
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
@@ -34,28 +39,44 @@ class AppViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         
+        // Mock Android Log
         mockkStatic(android.util.Log::class)
         every { android.util.Log.d(any(), any()) } returns 0
         every { android.util.Log.e(any(), any()) } returns 0
         every { android.util.Log.i(any(), any()) } returns 0
         every { android.util.Log.w(any(), any<String>()) } returns 0
         
+        // Mock Application con filesDir para DataStore
         mockApplication = mockk(relaxed = true)
+        val mockFilesDir = mockk<File>(relaxed = true)
+        every { mockFilesDir.path } returns "/test/datastore"
+        every { mockApplication.filesDir } returns mockFilesDir
+        every { mockApplication.applicationContext } returns mockApplication
+        
+        // Mock del constructor de ApiRepository
         mockRepo = mockk(relaxed = true)
-        coEvery { mockRepo.getTodosProductos() } returns Result.success(emptyList())
-        coEvery { mockRepo.getTodosUsuarios() } returns Result.success(emptyList())
-        coEvery { mockRepo.getTodosPedidos() } returns Result.success(emptyList())
-        coEvery { mockRepo.getTodasBoletas() } returns Result.success(emptyList())
-        coEvery { mockRepo.getPerfil() } returns Result.success(com.example.levelupgamerpanel_app.data.models.Usuario(correo = "test@local", nombres = "Test", apellidos = "User"))
-        coEvery { mockRepo.crearProducto(any()) } returns Result.success(com.example.levelupgamerpanel_app.data.models.Producto(codigo = "TEST001", nombre = "Test Product", precio = 10000.0, stock = 5, categoria = "Test"))
-        coEvery { mockRepo.actualizarProducto(any(), any()) } returns Result.success(com.example.levelupgamerpanel_app.data.models.Producto(codigo = "PROD001", nombre = "Producto Actualizado", precio = 20000.0, stock = 10, categoria = "Test"))
-        coEvery { mockRepo.eliminarProducto(any()) } returns Result.success(Unit)
-        coEvery { mockRepo.buscarProductos(any()) } returns Result.success(emptyList())
-        coEvery { mockRepo.cambiarEstadoPedido(any(), any()) } returns Result.success(com.example.levelupgamerpanel_app.data.models.Pedido(id = 1L, fecha = "2025-01-01T00:00:00", total = 0.0))
-        coEvery { mockRepo.logout() } returns Unit
-        coEvery { mockRepo.userEmailFlow } returns kotlinx.coroutines.flow.flowOf(null)
+        mockkConstructor(ApiRepository::class)
+        every { anyConstructed<ApiRepository>().userEmailFlow } returns flowOf(null)
+        coEvery { anyConstructed<ApiRepository>().getTodosProductos() } returns Result.success(emptyList())
+        coEvery { anyConstructed<ApiRepository>().getTodosUsuarios() } returns Result.success(emptyList())
+        coEvery { anyConstructed<ApiRepository>().getTodosPedidos() } returns Result.success(emptyList())
+        coEvery { anyConstructed<ApiRepository>().getTodasBoletas() } returns Result.success(emptyList())
+        coEvery { anyConstructed<ApiRepository>().getPerfil() } returns Result.success(Usuario(correo = "test@local", nombres = "Test", apellidos = "User"))
+        coEvery { anyConstructed<ApiRepository>().crearProducto(any()) } returns Result.success(Producto(codigo = "TEST001", nombre = "Test Product", precio = 10000.0, stock = 5, categoria = "Test"))
+        coEvery { anyConstructed<ApiRepository>().actualizarProducto(any(), any()) } returns Result.success(Producto(codigo = "PROD001", nombre = "Producto Actualizado", precio = 20000.0, stock = 10, categoria = "Test"))
+        coEvery { anyConstructed<ApiRepository>().eliminarProducto(any()) } returns Result.success(Unit)
+        coEvery { anyConstructed<ApiRepository>().buscarProductos(any()) } returns Result.success(emptyList())
+        coEvery { anyConstructed<ApiRepository>().cambiarEstadoPedido(any(), any()) } returns Result.success(Pedido(id = 1L, fecha = "2025-01-01T00:00:00", total = 0.0))
+        coEvery { anyConstructed<ApiRepository>().logout() } returns Unit
+        coEvery { anyConstructed<ApiRepository>().login(any(), any()) } returns Result.success(
+            LoginResponse(
+                token = "test-token",
+                usuario = Usuario(correo = "test@test.com", nombres = "Test", apellidos = "User")
+            )
+        )
 
-        viewModel = AppViewModel(mockApplication, mockRepo)
+        viewModel = AppViewModel(mockApplication)
+        testDispatcher.scheduler.advanceUntilIdle()
     }
     
     @After
@@ -195,7 +216,7 @@ class AppViewModelTest {
     
     @Test
     fun `addProducto llama onError cuando falla la creacion`() = runTest {
-        coEvery { mockRepo.crearProducto(any()) } returns Result.failure(Exception("Error de red"))
+        coEvery { anyConstructed<ApiRepository>().crearProducto(any()) } returns Result.failure(Exception("Error de red"))
         
         val producto = Producto(
             codigo = "FAIL001",
@@ -225,7 +246,7 @@ class AppViewModelTest {
     
     @Test
     fun `updateProducto llama onError cuando falla`() = runTest {
-        coEvery { mockRepo.actualizarProducto(any(), any()) } returns Result.failure(Exception("Error al actualizar"))
+        coEvery { anyConstructed<ApiRepository>().actualizarProducto(any(), any()) } returns Result.failure(Exception("Error al actualizar"))
         
         val producto = Producto(
             codigo = "FAIL002",
@@ -249,7 +270,7 @@ class AppViewModelTest {
     
     @Test
     fun `removeProducto llama onError cuando falla`() = runTest {
-        coEvery { mockRepo.eliminarProducto(any()) } returns Result.failure(Exception("No se puede eliminar"))
+        coEvery { anyConstructed<ApiRepository>().eliminarProducto(any()) } returns Result.failure(Exception("No se puede eliminar"))
         
         var errorLlamado = false
         
@@ -265,7 +286,7 @@ class AppViewModelTest {
     
     @Test
     fun `activarProducto cambia estado del producto`() = runTest {
-        coEvery { mockRepo.activarProducto(any()) } returns Result.success(Unit)
+        coEvery { anyConstructed<ApiRepository>().activarProducto(any()) } returns Result.success(Unit)
         
         var successLlamado = false
         
@@ -281,7 +302,7 @@ class AppViewModelTest {
     
     @Test
     fun `activarProducto llama onError cuando falla`() = runTest {
-        coEvery { mockRepo.activarProducto(any()) } returns Result.failure(Exception("Error"))
+        coEvery { anyConstructed<ApiRepository>().activarProducto(any()) } returns Result.failure(Exception("Error"))
         
         var errorLlamado = false
         
@@ -301,7 +322,7 @@ class AppViewModelTest {
             Usuario(correo = "user1@test.com", nombres = "User", apellidos = "One"),
             Usuario(correo = "user2@test.com", nombres = "User", apellidos = "Two")
         )
-        coEvery { mockRepo.getTodosUsuarios() } returns Result.success(usuarios)
+        coEvery { anyConstructed<ApiRepository>().getTodosUsuarios() } returns Result.success(usuarios)
         
         viewModel.cargarUsuarios()
         advanceUntilIdle()
@@ -316,7 +337,7 @@ class AppViewModelTest {
             Pedido(id = 1L, fecha = "2025-01-01T00:00:00", total = 10000.0),
             Pedido(id = 2L, fecha = "2025-01-02T00:00:00", total = 20000.0)
         )
-        coEvery { mockRepo.getTodosPedidos() } returns Result.success(pedidos)
+        coEvery { anyConstructed<ApiRepository>().getTodosPedidos() } returns Result.success(pedidos)
         
         viewModel.cargarPedidos()
         advanceUntilIdle()
@@ -328,7 +349,7 @@ class AppViewModelTest {
     @Test
     fun `cargarPedidoById llama onSuccess con el pedido`() = runTest {
         val pedido = Pedido(id = 1L, fecha = "2025-01-01T00:00:00", total = 10000.0)
-        coEvery { mockRepo.getPedidoById(1L) } returns Result.success(pedido)
+        coEvery { anyConstructed<ApiRepository>().getPedidoById(1L) } returns Result.success(pedido)
         
         var pedidoCargado: Pedido? = null
         
@@ -345,7 +366,7 @@ class AppViewModelTest {
     
     @Test
     fun `cargarPedidoById llama onError cuando falla`() = runTest {
-        coEvery { mockRepo.getPedidoById(any()) } returns Result.failure(Exception("Pedido no encontrado"))
+        coEvery { anyConstructed<ApiRepository>().getPedidoById(any()) } returns Result.failure(Exception("Pedido no encontrado"))
         
         var errorLlamado = false
         var errorMsg = ""
@@ -378,7 +399,7 @@ class AppViewModelTest {
             direccion = "Calle 123"
         )
         
-        coEvery { mockRepo.crearUsuario(any()) } returns Result.success(usuario)
+        coEvery { anyConstructed<ApiRepository>().crearUsuario(any()) } returns Result.success(usuario)
         
         var successLlamado = false
         
@@ -394,7 +415,7 @@ class AppViewModelTest {
     
     @Test
     fun `addUsuario llama onError cuando falla`() = runTest {
-        coEvery { mockRepo.crearUsuario(any()) } returns Result.failure(Exception("Usuario ya existe"))
+        coEvery { anyConstructed<ApiRepository>().crearUsuario(any()) } returns Result.failure(Exception("Usuario ya existe"))
         
         val usuario = Usuario(
             correo = "duplicate@test.com",
@@ -420,7 +441,7 @@ class AppViewModelTest {
             Boleta(numero = "BOL-001", fecha = "2025-01-01T00:00:00", pedidoId = 1L, total = 10000.0),
             Boleta(numero = "BOL-002", fecha = "2025-01-02T00:00:00", pedidoId = 2L, total = 20000.0)
         )
-        coEvery { mockRepo.getTodasBoletas() } returns Result.success(boletas)
+        coEvery { anyConstructed<ApiRepository>().getTodasBoletas() } returns Result.success(boletas)
         
         viewModel.cargarBoletas()
         advanceUntilIdle()
@@ -432,7 +453,7 @@ class AppViewModelTest {
     @Test
     fun `cargarBoletaByNumero llama onSuccess con la boleta`() = runTest {
         val boleta = Boleta(numero = "BOL-001", fecha = "2025-01-01T00:00:00", pedidoId = 1L, total = 10000.0)
-        coEvery { mockRepo.getBoletaPorNumero("BOL-001") } returns Result.success(boleta)
+        coEvery { anyConstructed<ApiRepository>().getBoletaPorNumero("BOL-001") } returns Result.success(boleta)
         
         var boletaCargada: Boleta? = null
         
@@ -448,7 +469,7 @@ class AppViewModelTest {
     
     @Test
     fun `cargarBoletaByNumero llama onError cuando falla`() = runTest {
-        coEvery { mockRepo.getBoletaPorNumero(any()) } returns Result.failure(Exception("Boleta no encontrada"))
+        coEvery { anyConstructed<ApiRepository>().getBoletaPorNumero(any()) } returns Result.failure(Exception("Boleta no encontrada"))
         
         var errorLlamado = false
         
@@ -465,7 +486,7 @@ class AppViewModelTest {
     @Test
     fun `cargarBoletaByPedido llama onSuccess con boleta cuando existe`() = runTest {
         val boleta = Boleta(numero = "BOL-001", fecha = "2025-01-01T00:00:00", pedidoId = 1L, total = 10000.0)
-        coEvery { mockRepo.getBoletaPorPedido(1L) } returns Result.success(boleta)
+        coEvery { anyConstructed<ApiRepository>().getBoletaPorPedido(1L) } returns Result.success(boleta)
         
         var boletaCargada: Boleta? = null
         
@@ -481,7 +502,7 @@ class AppViewModelTest {
     
     @Test
     fun `cargarBoletaByPedido llama onSuccess con null cuando no existe boleta (404)`() = runTest {
-        coEvery { mockRepo.getBoletaPorPedido(999L) } returns Result.success(null)
+        coEvery { anyConstructed<ApiRepository>().getBoletaPorPedido(999L) } returns Result.success(null)
         
         var boletaCargada: Boleta? = Boleta(numero = "TEMP", fecha = "2025-01-01T00:00:00", pedidoId = 1L, total = 0.0) // valor inicial no-null
         var errorLlamado = false
@@ -499,7 +520,7 @@ class AppViewModelTest {
     
     @Test
     fun `cargarBoletaByPedido llama onError cuando hay error real (no 404)`() = runTest {
-        coEvery { mockRepo.getBoletaPorPedido(any()) } returns Result.failure(Exception("Error de conexión"))
+        coEvery { anyConstructed<ApiRepository>().getBoletaPorPedido(any()) } returns Result.failure(Exception("Error de conexión"))
         
         var errorLlamado = false
         
@@ -516,8 +537,8 @@ class AppViewModelTest {
     @Test
     fun `generarBoleta llama onSuccess con la boleta generada`() = runTest {
         val boleta = Boleta(numero = "BOL-NEW", fecha = "2025-01-01T00:00:00", pedidoId = 1L, total = 10000.0)
-        coEvery { mockRepo.generarBoleta(1L) } returns Result.success(boleta)
-        coEvery { mockRepo.getTodasBoletas() } returns Result.success(listOf(boleta))
+        coEvery { anyConstructed<ApiRepository>().generarBoleta(1L) } returns Result.success(boleta)
+        coEvery { anyConstructed<ApiRepository>().getTodasBoletas() } returns Result.success(listOf(boleta))
         
         var boletaGenerada: Boleta? = null
         
@@ -533,7 +554,7 @@ class AppViewModelTest {
     
     @Test
     fun `generarBoleta llama onError cuando falla`() = runTest {
-        coEvery { mockRepo.generarBoleta(any()) } returns Result.failure(Exception("Error al generar"))
+        coEvery { anyConstructed<ApiRepository>().generarBoleta(any()) } returns Result.failure(Exception("Error al generar"))
         
         var errorLlamado = false
         
@@ -554,12 +575,12 @@ class AppViewModelTest {
             token = "fake-jwt-token",
             usuario = usuario
         )
-        coEvery { mockRepo.login(any(), any()) } returns Result.success(loginResponse)
-        coEvery { mockRepo.getPerfil() } returns Result.success(usuario)
-        coEvery { mockRepo.getTodosProductos() } returns Result.success(emptyList())
-        coEvery { mockRepo.getTodosPedidos() } returns Result.success(emptyList())
-        coEvery { mockRepo.getTodosUsuarios() } returns Result.success(emptyList())
-        coEvery { mockRepo.getTodasBoletas() } returns Result.success(emptyList())
+        coEvery { anyConstructed<ApiRepository>().login(any(), any()) } returns Result.success(loginResponse)
+        coEvery { anyConstructed<ApiRepository>().getPerfil() } returns Result.success(usuario)
+        coEvery { anyConstructed<ApiRepository>().getTodosProductos() } returns Result.success(emptyList())
+        coEvery { anyConstructed<ApiRepository>().getTodosPedidos() } returns Result.success(emptyList())
+        coEvery { anyConstructed<ApiRepository>().getTodosUsuarios() } returns Result.success(emptyList())
+        coEvery { anyConstructed<ApiRepository>().getTodasBoletas() } returns Result.success(emptyList())
         
         var okLlamado = false
         
@@ -576,7 +597,7 @@ class AppViewModelTest {
     
     @Test
     fun `login llama onError cuando las credenciales son incorrectas`() = runTest {
-        coEvery { mockRepo.login(any(), any()) } returns Result.failure(Exception("Credenciales inválidas"))
+        coEvery { anyConstructed<ApiRepository>().login(any(), any()) } returns Result.failure(Exception("Credenciales inválidas"))
         
         var errorLlamado = false
         var errorMsg = ""
@@ -599,8 +620,8 @@ class AppViewModelTest {
     @Test
     fun `setEstadoPedido llama onSuccess cuando actualiza correctamente`() = runTest {
         val pedidoActualizado = Pedido(id = 1L, fecha = "2025-01-01T00:00:00", total = 10000.0, estado = "ENTREGADO")
-        coEvery { mockRepo.cambiarEstadoPedido(1L, "ENTREGADO") } returns Result.success(pedidoActualizado)
-        coEvery { mockRepo.getTodosPedidos() } returns Result.success(listOf(pedidoActualizado))
+        coEvery { anyConstructed<ApiRepository>().cambiarEstadoPedido(1L, "ENTREGADO") } returns Result.success(pedidoActualizado)
+        coEvery { anyConstructed<ApiRepository>().getTodosPedidos() } returns Result.success(listOf(pedidoActualizado))
         
         var successLlamado = false
         
@@ -617,7 +638,7 @@ class AppViewModelTest {
     
     @Test
     fun `setEstadoPedido llama onError cuando falla`() = runTest {
-        coEvery { mockRepo.cambiarEstadoPedido(any(), any()) } returns Result.failure(Exception("Error al cambiar estado"))
+        coEvery { anyConstructed<ApiRepository>().cambiarEstadoPedido(any(), any()) } returns Result.failure(Exception("Error al cambiar estado"))
         
         var errorLlamado = false
         

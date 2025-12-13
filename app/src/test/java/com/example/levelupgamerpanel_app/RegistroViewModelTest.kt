@@ -39,7 +39,7 @@ class RegistroViewModelTest {
         every { android.util.Log.w(any(), any<String>()) } returns 0
         
         mockApp = mockk(relaxed = true)
-        viewModel = RegistroViewModel(mockApp)
+        viewModel = RegistroViewModel()
     }
 
     @After
@@ -56,7 +56,7 @@ class RegistroViewModelTest {
         assertEquals("", state.apellidos)
         assertEquals("", state.correo)
         assertEquals("", state.fechaNacimiento)
-        assertEquals("", state.tipoUsuario)
+        assertEquals("Administrador", state.tipoUsuario)
         assertEquals("", state.region)
         assertEquals("", state.comuna)
         assertEquals("", state.direccion)
@@ -219,7 +219,7 @@ class RegistroViewModelTest {
         viewModel.onNombres("A")
         val validado = viewModel.validarCampos()
         assertNotNull(validado.nombresError)
-        assertEquals("Mínimo 2 caracteres", validado.nombresError)
+        assertEquals("Solo letras, mínimo 2 caracteres", validado.nombresError)
     }
 
     @Test
@@ -381,7 +381,7 @@ class RegistroViewModelTest {
         viewModel.onPassword("12345")
         val validado = viewModel.validarCampos()
         assertNotNull(validado.passwordError)
-        assertEquals("Mínimo 6 caracteres", validado.passwordError)
+        assertEquals("Mínimo 6 caracteres, debe incluir letras y números", validado.passwordError)
     }
 
     @Test

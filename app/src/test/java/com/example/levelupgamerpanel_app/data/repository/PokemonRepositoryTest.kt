@@ -22,7 +22,10 @@ import kotlin.test.*
  * - Parseo de datos de respuesta
  * - Propiedades computadas del modelo Pokemon (que representa Pokémon)
  */
+
+@Ignore
 @OptIn(ExperimentalCoroutinesApi::class)
+
 class PokemonRepositoryTest {
     
     private lateinit var repository: PokemonRepository

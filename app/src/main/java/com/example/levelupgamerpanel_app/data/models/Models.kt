@@ -54,7 +54,7 @@ data class Pedido(
 data class Usuario(
     val correo: String,
     val password: String = "",
-    val tipoUsuario: String = "",
+    val tipoUsuario: String = "CLIENTE",
     val nombres: String = "",
     val apellidos: String = "",
     val puntosLevelUp: Int = 0,
@@ -87,7 +87,7 @@ data class RegisterRequest(
     val apellidos: String,
     val correo: String,
     val password: String,
-    val tipoUsuario: String = "",
+    val tipoUsuario: String = "CLIENTE",
     val region: String = "",
     val comuna: String = "",
     val direccion: String = ""
